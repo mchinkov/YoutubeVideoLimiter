@@ -4,77 +4,186 @@
     <meta charset="UTF-8" />
     <title>Daily Video Limit</title>
     <style>
+      * {
+        box-sizing: border-box;
+      }
+
       body {
-        font-family: Arial, sans-serif;
-        min-width: 260px;
+        margin: 0;
+        min-width: 300px;
         padding: 16px;
+        font-family: Arial, sans-serif;
+        background: #fff;
+        color: #111;
       }
-      label, input, button {
+
+      .shell {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 22px;
+        line-height: 1.1;
+        font-weight: 700;
+      }
+
+      .subtitle {
+        margin: 4px 0 0;
+        color: #555;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .status-card {
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        background: #fafafa;
+      }
+
+      #status {
+        font-size: 14px;
+        line-height: 1.45;
+        font-weight: 600;
+      }
+
+      #debugInfo {
+        margin-top: 8px;
+        color: #666;
+        font-size: 12px;
+        min-height: 1.2em;
+      }
+
+      .field-group {
+        margin-bottom: 14px;
+      }
+
+      label {
         display: block;
-        width: 100%;
-        margin-bottom: 12px;
+        margin-bottom: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        color: #444;
+        text-transform: uppercase;
       }
+
+      input,
+      button {
+        width: 100%;
+      }
+
+      input[type="number"] {
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 14px;
+        color: #111;
+        background: #fff;
+        transition: border-color 120ms ease, box-shadow 120ms ease;
+      }
+
+      input[type="number"]:focus {
+        outline: none;
+        border-color: #111;
+        box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.08);
+      }
+
       .checkbox-row {
         display: flex;
         align-items: center;
-        gap: 8px;
-        margin-bottom: 12px;
+        gap: 10px;
+        margin: 0;
       }
-      .checkbox-row label,
+
       .checkbox-row input {
         width: auto;
         margin: 0;
+        accent-color: #111;
       }
-      input {
-        box-sizing: border-box;
-        padding: 8px;
+
+      .checkbox-row label {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 500;
+        letter-spacing: 0;
+        color: #111;
+        text-transform: none;
       }
+
+      .button-row {
+        display: grid;
+        gap: 10px;
+      }
+
       button {
-        padding: 10px;
+        border: 1px solid #111;
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 14px;
+        font-weight: 600;
         cursor: pointer;
+        transition: background 120ms ease, color 120ms ease, opacity 120ms ease;
       }
+
+      button:hover:not(:disabled) {
+        opacity: 0.92;
+      }
+
+      #save {
+        background: #111;
+        color: #fff;
+      }
+
       #reset {
-        background: #f4d7d7;
-        border: 1px solid #c77;
+        background: #fff;
+        color: #111;
       }
+
       #reset:disabled {
-        opacity: 0.6;
+        opacity: 0.45;
         cursor: not-allowed;
       }
-      #status {
-        margin-top: 12px;
-        color: #333;
-      }
+
       #message {
-        margin-top: 8px;
-        color: #7a1f1f;
-        min-height: 1.2em;
-      }
-      #debugInfo {
-        margin-top: 8px;
-        color: #555;
         font-size: 12px;
+        line-height: 1.45;
         min-height: 1.2em;
       }
     </style>
   </head>
   <body>
-    <h2>Daily Video Limit</h2>
+    <main class="shell">
+      <div>
+        <h2>Daily Video Limit</h2>
+        <p class="subtitle">Set how many YouTube videos you want to allow each day.</p>
+      </div>
 
-    <label for="limit">Allowed videos per day</label>
-    <input id="limit" type="number" min="1" step="1" />
+      <section class="status-card">
+        <div id="status"></div>
+        <div id="debugInfo"></div>
+      </section>
 
-    <div class="checkbox-row">
-      <input id="debug" type="checkbox" />
-      <label for="debug">Enable debug logging</label>
-    </div>
+      <div class="field-group">
+        <label for="limit">Allowed Videos Per Day</label>
+        <input id="limit" type="number" min="1" step="1" />
+      </div>
 
-    <button id="save">Save</button>
-    <button id="reset" type="button" disabled>Reset Extension Data</button>
+      <div class="checkbox-row">
+        <input id="debug" type="checkbox" />
+        <label for="debug">Enable debug logging</label>
+      </div>
 
-    <div id="status"></div>
-    <div id="debugInfo"></div>
-    <div id="message"></div>
+      <div class="button-row">
+        <button id="save">Save Settings</button>
+        <button id="reset" type="button" disabled>Reset Extension Data</button>
+      </div>
+
+      <div id="message"></div>
+    </main>
 
     <script src="popup.js"></script>
   </body>
