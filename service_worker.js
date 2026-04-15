@@ -142,6 +142,21 @@ async function handleMessage(message) {
     };
   }
 
+  if (message?.type === "RESET_DEBUG_STATE") {
+    await chrome.storage.local.set({
+      dailyLimit: DEFAULT_LIMIT,
+      dailyData: {},
+      debugEnabled: true
+    });
+    await debugLog("RESET_DEBUG_STATE");
+    return {
+      ok: true,
+      limit: DEFAULT_LIMIT,
+      count: 0,
+      blocked: false
+    };
+  }
+
   return { ok: false, error: "Unknown message type" };
 }
 

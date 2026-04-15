@@ -33,6 +33,14 @@
         padding: 10px;
         cursor: pointer;
       }
+      #reset {
+        background: #f4d7d7;
+        border: 1px solid #c77;
+      }
+      #reset:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
       #status {
         margin-top: 12px;
         color: #333;
@@ -51,6 +59,7 @@
     </div>
 
     <button id="save">Save</button>
+    <button id="reset" type="button" disabled>Reset Extension Data</button>
 
     <div id="status"></div>
 

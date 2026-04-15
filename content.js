@@ -210,10 +210,18 @@ async function syncVideoState() {
 }
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName !== "local" || !Object.hasOwn(changes, "debugEnabled")) return;
+  if (areaName !== "local") return;
 
-  debugEnabled = changes.debugEnabled.newValue === true;
-  debugLog("DEBUG_LOGGING_UPDATED", { enabled: debugEnabled });
+  if (Object.hasOwn(changes, "debugEnabled")) {
+    debugEnabled = changes.debugEnabled.newValue === true;
+    debugLog("DEBUG_LOGGING_UPDATED", { enabled: debugEnabled });
+  }
+
+  if (Object.hasOwn(changes, "dailyData") || Object.hasOwn(changes, "dailyLimit")) {
+    debugLog("STATE_RESET_OR_UPDATED");
+    currentVideoId = null;
+    resetCurrentVideoState();
+  }
 });
 
 loadDebugEnabled().catch((error) => {

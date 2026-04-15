@@ -20,6 +20,7 @@ async function render() {
 
   document.getElementById("limit").value = limit;
   document.getElementById("debug").checked = debugEnabled;
+  document.getElementById("reset").disabled = !debugEnabled;
   document.getElementById("status").textContent =
     `Today: ${count} / ${limit} videos watched. Debug logging is ${
       debugEnabled ? "on" : "off"
@@ -42,6 +43,34 @@ document.getElementById("save").addEventListener("click", async () => {
     debugEnabled: debugInput.checked
   });
   await render();
+});
+
+document.getElementById("reset").addEventListener("click", async () => {
+  const debugEnabled = document.getElementById("debug").checked;
+
+  if (!debugEnabled) {
+    document.getElementById("status").textContent =
+      "Enable debug logging before resetting extension data.";
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "Reset the extension back to its default state for debugging?"
+  );
+
+  if (!confirmed) return;
+
+  const response = await chrome.runtime.sendMessage({ type: "RESET_DEBUG_STATE" });
+
+  if (!response?.ok) {
+    document.getElementById("status").textContent =
+      "Reset failed. Check the service worker console for details.";
+    return;
+  }
+
+  await render();
+  document.getElementById("status").textContent =
+    "Extension data reset. Limit restored to default and watch history cleared.";
 });
 
 chrome.storage.onChanged.addListener(() => {
