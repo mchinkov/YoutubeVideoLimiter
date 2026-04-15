@@ -10,33 +10,26 @@ function getTodayKey() {
 
 async function getState() {
   const today = getTodayKey();
-  const data = await chrome.storage.local.get([
-    "dailyLimit",
-    "dailyData"
-  ]);
+  const data = await chrome.storage.local.get(["dailyLimit", "dailyData"]);
 
-  const dailyLimit = Number.isInteger(data.dailyLimit) && data.dailyLimit > 0
-    ? data.dailyLimit
-    : DEFAULT_LIMIT;
+  const dailyLimit =
+    Number.isInteger(data.dailyLimit) && data.dailyLimit > 0
+      ? data.dailyLimit
+      : DEFAULT_LIMIT;
 
   const dailyData = data.dailyData || {};
   const todayData = dailyData[today] || { count: 0, viewedVideoIds: [] };
 
-  return {
-    today,
-    dailyLimit,
-    dailyData,
-    todayData
-  };
+  return { today, dailyLimit, dailyData, todayData };
 }
 
-async function saveTodayData(today, todayData, existingDailyData) {
-  const newDailyData = {
-    ...existingDailyData,
-    [today]: todayData
-  };
-
-  await chrome.storage.local.set({ dailyData: newDailyData });
+async function saveTodayData(today, todayData, dailyData) {
+  await chrome.storage.local.set({
+    dailyData: {
+      ...dailyData,
+      [today]: todayData
+    }
+  });
 }
 
 chrome.runtime.onInstalled.addListener(async () => {
@@ -48,9 +41,9 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
-    if (message?.type === "GET_STATUS") {
-      const { dailyLimit, todayData } = await getState();
+    const { today, dailyLimit, dailyData, todayData } = await getState();
 
+    if (message?.type === "GET_STATUS") {
       sendResponse({
         ok: true,
         limit: dailyLimit,
@@ -61,16 +54,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return;
     }
 
+    if (message?.type === "CHECK_VIDEO_ALREADY_VIEWED") {
+      const videoId = message.videoId;
+      sendResponse({
+        ok: true,
+        alreadyViewed: todayData.viewedVideoIds.includes(videoId)
+      });
+      return;
+    }
+
     if (message?.type === "TRY_COUNT_VIDEO") {
       const videoId = message.videoId;
+
       if (!videoId) {
         sendResponse({ ok: false, error: "Missing videoId" });
         return;
       }
 
-      const { today, dailyLimit, dailyData, todayData } = await getState();
-
       const alreadyViewed = todayData.viewedVideoIds.includes(videoId);
+
       if (alreadyViewed) {
         sendResponse({
           ok: true,
@@ -110,7 +112,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         limit: dailyLimit,
         blocked: updatedTodayData.count >= dailyLimit
       });
+      return;
     }
+
+    sendResponse({ ok: false, error: "Unknown message type" });
   })();
 
   return true;

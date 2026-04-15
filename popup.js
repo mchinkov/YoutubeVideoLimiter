@@ -1,12 +1,19 @@
-async function loadSettings() {
+function getTodayKey() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+async function render() {
   const data = await chrome.storage.local.get(["dailyLimit", "dailyData"]);
 
   const limit = Number.isInteger(data.dailyLimit) ? data.dailyLimit : 5;
-  document.getElementById("limit").value = limit;
-
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTodayKey();
   const count = data.dailyData?.[today]?.count || 0;
 
+  document.getElementById("limit").value = limit;
   document.getElementById("status").textContent =
     `Today: ${count} / ${limit} videos watched`;
 }
@@ -22,13 +29,11 @@ document.getElementById("save").addEventListener("click", async () => {
   }
 
   await chrome.storage.local.set({ dailyLimit: value });
-
-  const today = new Date().toISOString().slice(0, 10);
-  const data = await chrome.storage.local.get(["dailyData"]);
-  const count = data.dailyData?.[today]?.count || 0;
-
-  document.getElementById("status").textContent =
-    `Saved. Today: ${count} / ${value} videos watched`;
+  await render();
 });
 
-loadSettings();
+chrome.storage.onChanged.addListener(() => {
+  render();
+});
+
+render();

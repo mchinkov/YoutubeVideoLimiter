@@ -1,20 +1,23 @@
 let currentVideoId = null;
 let countedForCurrentVideo = false;
-let blockOverlay = null;
-let watchTimer = null;
+let overlayEl = null;
 
 function getVideoIdFromUrl() {
-  const url = new URL(window.location.href);
+  try {
+    const url = new URL(window.location.href);
 
-  if (url.pathname === "/watch") {
-    return url.searchParams.get("v");
+    if (url.pathname === "/watch") {
+      return url.searchParams.get("v");
+    }
+
+    if (url.pathname.startsWith("/shorts/")) {
+      return url.pathname.split("/")[2] || null;
+    }
+
+    return null;
+  } catch {
+    return null;
   }
-
-  if (url.pathname.startsWith("/shorts/")) {
-    return url.pathname.split("/")[2] || null;
-  }
-
-  return null;
 }
 
 function getVideoElement() {
@@ -22,24 +25,24 @@ function getVideoElement() {
 }
 
 function removeOverlay() {
-  if (blockOverlay) {
-    blockOverlay.remove();
-    blockOverlay = null;
+  if (overlayEl) {
+    overlayEl.remove();
+    overlayEl = null;
   }
 }
 
 function showOverlay(message) {
-  if (blockOverlay) return;
+  if (overlayEl) return;
 
-  blockOverlay = document.createElement("div");
-  blockOverlay.style.position = "fixed";
-  blockOverlay.style.inset = "0";
-  blockOverlay.style.background = "rgba(0,0,0,0.85)";
-  blockOverlay.style.zIndex = "999999";
-  blockOverlay.style.display = "flex";
-  blockOverlay.style.alignItems = "center";
-  blockOverlay.style.justifyContent = "center";
-  blockOverlay.style.padding = "24px";
+  overlayEl = document.createElement("div");
+  overlayEl.style.position = "fixed";
+  overlayEl.style.inset = "0";
+  overlayEl.style.background = "rgba(0,0,0,0.85)";
+  overlayEl.style.zIndex = "999999";
+  overlayEl.style.display = "flex";
+  overlayEl.style.alignItems = "center";
+  overlayEl.style.justifyContent = "center";
+  overlayEl.style.padding = "24px";
 
   const box = document.createElement("div");
   box.style.maxWidth = "520px";
@@ -47,7 +50,6 @@ function showOverlay(message) {
   box.style.color = "#fff";
   box.style.padding = "24px";
   box.style.borderRadius = "16px";
-  box.style.boxShadow = "0 10px 40px rgba(0,0,0,0.4)";
   box.style.fontFamily = "Arial, sans-serif";
   box.style.textAlign = "center";
 
@@ -60,8 +62,8 @@ function showOverlay(message) {
 
   box.appendChild(title);
   box.appendChild(text);
-  blockOverlay.appendChild(box);
-  document.body.appendChild(blockOverlay);
+  overlayEl.appendChild(box);
+  document.body.appendChild(overlayEl);
 }
 
 function pauseVideo() {
@@ -69,49 +71,22 @@ function pauseVideo() {
   if (video) video.pause();
 }
 
-async function getStatus() {
-  return await chrome.runtime.sendMessage({ type: "GET_STATUS" });
-}
-
-async function tryCountVideo(videoId) {
-  return await chrome.runtime.sendMessage({
-    type: "TRY_COUNT_VIDEO",
-    videoId
-  });
-}
-
-function clearWatchTimer() {
-  if (watchTimer) {
-    clearTimeout(watchTimer);
-    watchTimer = null;
+async function sendMessage(message) {
+  try {
+    return await chrome.runtime.sendMessage(message);
+  } catch (err) {
+    console.error("sendMessage failed:", err);
+    return null;
   }
 }
 
-async function enforceIfBlockedBeforeCounting(videoId) {
-  const status = await getStatus();
-  if (!status?.ok) return false;
-
-  const alreadyCountedVideo = false;
-
-  if (status.blocked && !alreadyCountedVideo) {
-    pauseVideo();
-    showOverlay(
-      `You have already watched ${status.count} video(s) today, which is your daily limit. Come back tomorrow.`
-    );
-    return true;
-  }
-
-  removeOverlay();
-  return false;
-}
-
-async function handleVideoPage() {
+async function syncVideoState() {
   const videoId = getVideoIdFromUrl();
+  const video = getVideoElement();
 
-  if (!videoId) {
+  if (!videoId || !video) {
     currentVideoId = null;
     countedForCurrentVideo = false;
-    clearWatchTimer();
     removeOverlay();
     return;
   }
@@ -119,68 +94,53 @@ async function handleVideoPage() {
   if (videoId !== currentVideoId) {
     currentVideoId = videoId;
     countedForCurrentVideo = false;
-    clearWatchTimer();
     removeOverlay();
 
-    const blocked = await enforceIfBlockedBeforeCounting(videoId);
-    if (blocked) return;
-  }
+    const status = await sendMessage({ type: "GET_STATUS" });
+    if (!status?.ok) return;
 
-  const video = getVideoElement();
-  if (!video || countedForCurrentVideo) return;
+    if (status.blocked) {
+      const alreadyViewedCheck = await sendMessage({
+        type: "CHECK_VIDEO_ALREADY_VIEWED",
+        videoId
+      });
 
-  const startCountingTimer = () => {
-    clearWatchTimer();
-
-    watchTimer = setTimeout(async () => {
-      if (countedForCurrentVideo) return;
-
-      const result = await tryCountVideo(videoId);
-      if (!result?.ok) return;
-
-      if (result.blocked && !result.counted) {
+      if (alreadyViewedCheck?.ok && !alreadyViewedCheck.alreadyViewed) {
         pauseVideo();
         showOverlay(
-          `You have already watched ${result.count} video(s) today, which is your daily limit.`
+          `You have already watched ${status.count} video(s) today, which is your limit.`
         );
         return;
       }
+    }
+  }
 
-      countedForCurrentVideo = true;
+  if (countedForCurrentVideo) return;
 
-      if (result.blocked) {
-        // This video was the last allowed one.
-        console.log("Last allowed video for today.");
-      }
-    }, 10000); // count after 10 seconds of watching
-  };
+  if (!video.paused && video.currentTime >= 10) {
+    const result = await sendMessage({
+      type: "TRY_COUNT_VIDEO",
+      videoId
+    });
 
-  const cancelCountingTimer = () => {
-    clearWatchTimer();
-  };
+    if (!result?.ok) return;
 
-  video.addEventListener("play", startCountingTimer, { once: true });
-  video.addEventListener("pause", cancelCountingTimer);
+    if (result.blocked && !result.counted && !result.alreadyViewed) {
+      pauseVideo();
+      showOverlay(
+        `You have already watched ${result.count} video(s) today, which is your limit.`
+      );
+      return;
+    }
+
+    countedForCurrentVideo = true;
+    removeOverlay();
+    console.log("Video counted:", videoId, result);
+  }
 }
 
-let lastUrl = location.href;
-
-const observer = new MutationObserver(async () => {
-  if (location.href !== lastUrl) {
-    lastUrl = location.href;
-    setTimeout(handleVideoPage, 300);
-  }
-});
-
-observer.observe(document, { subtree: true, childList: true });
-
+setInterval(syncVideoState, 1000);
+window.addEventListener("yt-navigate-finish", syncVideoState);
 window.addEventListener("load", () => {
-  setTimeout(handleVideoPage, 800);
+  setTimeout(syncVideoState, 1000);
 });
-
-setInterval(() => {
-  if (location.href !== lastUrl) {
-    lastUrl = location.href;
-    handleVideoPage();
-  }
-}, 1000);
