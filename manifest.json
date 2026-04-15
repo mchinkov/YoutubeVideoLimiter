@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Daily Video Limit",
+  "version": "1.0.0",
+  "description": "Limits how many YouTube videos can be viewed per day.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://www.youtube.com/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Daily Video Limit"
+  },
+  "background": {
+    "service_worker": "service_worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

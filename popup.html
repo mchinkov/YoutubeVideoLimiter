@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Daily Video Limit</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        min-width: 260px;
+        padding: 16px;
+      }
+      label, input, button {
+        display: block;
+        width: 100%;
+        margin-bottom: 12px;
+      }
+      input {
+        box-sizing: border-box;
+        padding: 8px;
+      }
+      button {
+        padding: 10px;
+        cursor: pointer;
+      }
+      #status {
+        margin-top: 12px;
+        color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Daily Video Limit</h2>
+
+    <label for="limit">Allowed videos per day</label>
+    <input id="limit" type="number" min="1" step="1" />
+
+    <button id="save">Save</button>
+
+    <div id="status"></div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
