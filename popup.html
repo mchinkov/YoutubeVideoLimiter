@@ -14,6 +14,17 @@
         width: 100%;
         margin-bottom: 12px;
       }
+      .checkbox-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .checkbox-row label,
+      .checkbox-row input {
+        width: auto;
+        margin: 0;
+      }
       input {
         box-sizing: border-box;
         padding: 8px;
@@ -33,6 +44,11 @@
 
     <label for="limit">Allowed videos per day</label>
     <input id="limit" type="number" min="1" step="1" />
+
+    <div class="checkbox-row">
+      <input id="debug" type="checkbox" />
+      <label for="debug">Enable debug logging</label>
+    </div>
 
     <button id="save">Save</button>
 

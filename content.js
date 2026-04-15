@@ -1,6 +1,18 @@
 let currentVideoId = null;
 let countedForCurrentVideo = false;
+let blockedForCurrentVideo = false;
+let debugEnabled = false;
 let overlayEl = null;
+let overlayTextEl = null;
+let currentDayKey = getTodayKey();
+
+function getTodayKey() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
 
 function getVideoIdFromUrl() {
   try {
@@ -28,11 +40,15 @@ function removeOverlay() {
   if (overlayEl) {
     overlayEl.remove();
     overlayEl = null;
+    overlayTextEl = null;
   }
 }
 
 function showOverlay(message) {
-  if (overlayEl) return;
+  if (overlayEl) {
+    if (overlayTextEl) overlayTextEl.textContent = message;
+    return;
+  }
 
   overlayEl = document.createElement("div");
   overlayEl.style.position = "fixed";
@@ -57,11 +73,11 @@ function showOverlay(message) {
   title.textContent = "Daily video limit reached";
   title.style.marginTop = "0";
 
-  const text = document.createElement("p");
-  text.textContent = message;
+  overlayTextEl = document.createElement("p");
+  overlayTextEl.textContent = message;
 
   box.appendChild(title);
-  box.appendChild(text);
+  box.appendChild(overlayTextEl);
   overlayEl.appendChild(box);
   document.body.appendChild(overlayEl);
 }
@@ -80,39 +96,86 @@ async function sendMessage(message) {
   }
 }
 
+async function loadDebugEnabled() {
+  const data = await chrome.storage.local.get(["debugEnabled"]);
+  debugEnabled = data.debugEnabled === true;
+}
+
+function debugLog(...args) {
+  if (debugEnabled) {
+    console.log("[Daily Video Limit][content]", ...args);
+  }
+}
+
+function resetCurrentVideoState() {
+  countedForCurrentVideo = false;
+  blockedForCurrentVideo = false;
+  removeOverlay();
+}
+
+async function refreshBlockState(videoId) {
+  const status = await sendMessage({ type: "GET_STATUS" });
+  if (!status?.ok) return false;
+
+  if (!status.blocked) {
+    blockedForCurrentVideo = false;
+    removeOverlay();
+    return false;
+  }
+
+  const alreadyViewedCheck = await sendMessage({
+    type: "CHECK_VIDEO_ALREADY_VIEWED",
+    videoId
+  });
+
+  if (!alreadyViewedCheck?.ok) return false;
+
+  blockedForCurrentVideo = !alreadyViewedCheck.alreadyViewed;
+
+  if (blockedForCurrentVideo) {
+    debugLog("VIDEO_BLOCKED", {
+      videoId,
+      count: status.count,
+      limit: status.limit
+    });
+    pauseVideo();
+    showOverlay(
+      `You have already watched ${status.count} video(s) today, which is your limit.`
+    );
+    return true;
+  }
+
+  removeOverlay();
+  return false;
+}
+
 async function syncVideoState() {
+  const todayKey = getTodayKey();
+  if (todayKey !== currentDayKey) {
+    debugLog("DAY_ROLLOVER", { from: currentDayKey, to: todayKey });
+    currentDayKey = todayKey;
+    currentVideoId = null;
+    resetCurrentVideoState();
+  }
+
   const videoId = getVideoIdFromUrl();
   const video = getVideoElement();
 
   if (!videoId || !video) {
     currentVideoId = null;
-    countedForCurrentVideo = false;
-    removeOverlay();
+    resetCurrentVideoState();
     return;
   }
 
   if (videoId !== currentVideoId) {
+    debugLog("VIDEO_CHANGED", { from: currentVideoId, to: videoId });
     currentVideoId = videoId;
-    countedForCurrentVideo = false;
-    removeOverlay();
+    resetCurrentVideoState();
+  }
 
-    const status = await sendMessage({ type: "GET_STATUS" });
-    if (!status?.ok) return;
-
-    if (status.blocked) {
-      const alreadyViewedCheck = await sendMessage({
-        type: "CHECK_VIDEO_ALREADY_VIEWED",
-        videoId
-      });
-
-      if (alreadyViewedCheck?.ok && !alreadyViewedCheck.alreadyViewed) {
-        pauseVideo();
-        showOverlay(
-          `You have already watched ${status.count} video(s) today, which is your limit.`
-        );
-        return;
-      }
-    }
+  if (!countedForCurrentVideo) {
+    const blocked = await refreshBlockState(videoId);
+    if (blocked) return;
   }
 
   if (countedForCurrentVideo) return;
@@ -126,6 +189,12 @@ async function syncVideoState() {
     if (!result?.ok) return;
 
     if (result.blocked && !result.counted && !result.alreadyViewed) {
+      blockedForCurrentVideo = true;
+      debugLog("VIDEO_BLOCKED_DURING_COUNT", {
+        videoId,
+        count: result.count,
+        limit: result.limit
+      });
       pauseVideo();
       showOverlay(
         `You have already watched ${result.count} video(s) today, which is your limit.`
@@ -134,10 +203,22 @@ async function syncVideoState() {
     }
 
     countedForCurrentVideo = true;
+    blockedForCurrentVideo = false;
     removeOverlay();
-    console.log("Video counted:", videoId, result);
+    debugLog("VIDEO_COUNTED", { videoId, result });
   }
 }
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "local" || !Object.hasOwn(changes, "debugEnabled")) return;
+
+  debugEnabled = changes.debugEnabled.newValue === true;
+  debugLog("DEBUG_LOGGING_UPDATED", { enabled: debugEnabled });
+});
+
+loadDebugEnabled().catch((error) => {
+  console.error("Failed to load debug setting:", error);
+});
 
 setInterval(syncVideoState, 1000);
 window.addEventListener("yt-navigate-finish", syncVideoState);

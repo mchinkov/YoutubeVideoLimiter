@@ -7,19 +7,28 @@ function getTodayKey() {
 }
 
 async function render() {
-  const data = await chrome.storage.local.get(["dailyLimit", "dailyData"]);
+  const data = await chrome.storage.local.get([
+    "dailyLimit",
+    "dailyData",
+    "debugEnabled"
+  ]);
 
   const limit = Number.isInteger(data.dailyLimit) ? data.dailyLimit : 5;
   const today = getTodayKey();
   const count = data.dailyData?.[today]?.count || 0;
+  const debugEnabled = data.debugEnabled === true;
 
   document.getElementById("limit").value = limit;
+  document.getElementById("debug").checked = debugEnabled;
   document.getElementById("status").textContent =
-    `Today: ${count} / ${limit} videos watched`;
+    `Today: ${count} / ${limit} videos watched. Debug logging is ${
+      debugEnabled ? "on" : "off"
+    }.`;
 }
 
 document.getElementById("save").addEventListener("click", async () => {
   const input = document.getElementById("limit");
+  const debugInput = document.getElementById("debug");
   const value = parseInt(input.value, 10);
 
   if (!Number.isInteger(value) || value < 1) {
@@ -28,7 +37,10 @@ document.getElementById("save").addEventListener("click", async () => {
     return;
   }
 
-  await chrome.storage.local.set({ dailyLimit: value });
+  await chrome.storage.local.set({
+    dailyLimit: value,
+    debugEnabled: debugInput.checked
+  });
   await render();
 });
 
