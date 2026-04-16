@@ -23,6 +23,10 @@ Daily Video Limit tracks unique YouTube videos locally in your browser, counts a
 4. If your limit has already been reached, new unviewed videos are paused and covered with a break reminder.
 5. Rewatching a video already counted that day does not increase the count.
 
+<p align="center">
+  <img src="docs/assets/daily-video-limit-overlay.png" alt="Daily Video Limit overlay shown on YouTube after the daily limit is reached" width="760">
+</p>
+
 ## Installation
 
 This extension is designed to be loaded locally as an unpacked Chrome extension.
@@ -45,6 +49,10 @@ Click the **Daily Video Limit** extension icon in Chrome to:
 
 The default daily limit is `5` videos.
 
+<p align="center">
+  <img src="docs/assets/daily-video-limit-popup.png" alt="Daily Video Limit popup showing today's count, daily limit setting, debug toggle, save button, and reset button" width="360">
+</p>
+
 ## Permissions
 
 The extension requests:
@@ -61,6 +69,8 @@ No data is sent to an external server.
 ├── manifest.json        # Chrome extension manifest
 ├── service_worker.js    # Background logic, state management, and message handling
 ├── content.js           # YouTube page detection, playback counting, and blocking overlay
+├── docs/
+│   └── assets/          # README screenshots
 ├── popup.html           # Extension popup markup and styles
 └── popup.js             # Popup settings, status rendering, and reset behavior
 ```
